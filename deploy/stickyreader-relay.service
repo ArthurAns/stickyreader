@@ -1,0 +1,18 @@
+[Unit]
+Description=StickyReader relay
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+ExecStart=/usr/bin/python3 /opt/stickyreader/relay.py --host 127.0.0.1 --port 8787 --data /var/lib/stickyreader/relay.json
+WorkingDirectory=/var/lib/stickyreader
+StateDirectory=stickyreader
+DynamicUser=yes
+Restart=always
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+
+[Install]
+WantedBy=multi-user.target

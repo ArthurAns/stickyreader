@@ -13,6 +13,7 @@ local json = require("json")
 local ltn12 = require("ltn12")
 local socket = require("socket")
 local http = require("socket.http")
+local https = require("ssl.https")
 local socketutil = require("socketutil")
 local util = require("util")
 local _ = require("gettext")
@@ -35,7 +36,8 @@ local function request(method, path, body)
     local token = settings:readSetting("token")
     if token then headers["Authorization"] = "Bearer " .. token end
     socketutil:set_timeout(10, 30)
-    local code = socket.skip(1, http.request{
+    local client = base:match("^https://") and https or http
+    local code = socket.skip(1, client.request{
         url = base:gsub("/+$", "") .. path,
         method = method,
         headers = headers,
