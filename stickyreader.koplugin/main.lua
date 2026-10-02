@@ -188,6 +188,7 @@ function StickyReader:sync(opts)
             settings:saveSetting("last_id", last.id)
             settings:saveSetting("note", last.text)
             settings:saveSetting("note_ts", last.ts)
+            settings:saveSetting("note_seen", false)  -- a fresh letter: show it on the next sleep
             settings:flush()
             if opts.quiet then
                 Notification:notify(_("New note: ") .. shorten(last.text, 50))
@@ -292,7 +293,7 @@ function StickyReader:unpair()
     if self:isPaired() then
         self:withNetwork(function() request("POST", "/unpair", {}) end)
     end
-    for _i, k in ipairs{ "token", "last_id", "note", "note_ts" } do settings:delSetting(k) end
+    for _i, k in ipairs{ "token", "last_id", "note", "note_ts", "note_seen" } do settings:delSetting(k) end
     settings:flush()
     self:toast(_("Unpaired."))
 end
@@ -386,6 +387,8 @@ function StickyReader:onResume()
     -- Dismiss our note screen on wake, whatever the global "sleep screen delay" is.
     if Screensaver._stickyreader_note_shown then
         Screensaver._stickyreader_note_shown = false
+        settings:saveSetting("note_seen", true)  -- letter opened: back to the normal sleep screen
+        settings:flush()
         UIManager:scheduleIn(0.5, function() Screensaver:close_widget() end)
     end
     if self:isPaired() and settings:nilOrTrue("auto_sync") then
@@ -412,7 +415,7 @@ function StickyReader:hookScreensaver()
     local orig_show = Screensaver.show
     Screensaver.show = function(ss, ...)
         local note = settings:readSetting("note")
-        if not note or settings:readSetting("show_note") == false then
+        if not note or settings:readSetting("show_note") == false or settings:isTrue("note_seen") then
             return orig_show(ss, ...)
         end
         local w, h = Screen:getWidth(), Screen:getHeight()

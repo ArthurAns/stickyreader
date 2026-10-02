@@ -28,7 +28,8 @@ token; re-linking revokes the previous link. The relay URL must be reachable fro
   while it is awake and online. A Kindle that is asleep cannot receive anything; notes arrive at the next wake.
 - Optional: *Settings -> Turn on Wi-Fi briefly when waking up* switches Wi-Fi on for the fetch, then off again.
 - *History* (Sticky Reader menu) lists the last 100 notes received and sent; tap one to read it.
-- The sleep screen shows the latest received note as a framed card with the date and time received.
+- The sleep screen shows a newly received note once, as a framed card with the date and time received.
+  After you wake the Kindle the note counts as "opened" and the normal sleep screen returns until the next new note (it stays in History).
 
 ## Relay security
 - At most **2 devices** per relay (`--max-devices`); unpair a Kindle to free a slot. If a Kindle is lost
