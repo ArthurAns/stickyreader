@@ -51,7 +51,7 @@ local function request(method, path, body)
 end
 
 function StickyReader:init()
-    self.ui.menu:registerToMenu(self)
+    self.ui.menu:registerToMainMenu(self)
     self:hookScreensaver()
 end
 
