@@ -151,6 +151,26 @@ function StickyReader:pairJoin()
     dialog:onShowKeyboard()
 end
 
+-- Show a QR code (and the URL) that opens a send-a-note page on a phone.
+function StickyReader:linkPhone()
+    self:withNetwork(function()
+        local res, err = request("POST", "/phone/link", {})
+        if not res then return self:toast(err) end
+        local url = settings:readSetting("server"):gsub("/+$", "") .. res.path
+        local ok = pcall(function()
+            local QRMessage = require("ui/widget/qrmessage")
+            UIManager:show(QRMessage:new{
+                text = url,
+                width = Screen:getWidth(),
+                height = Screen:getHeight(),
+            })
+        end)
+        if not ok then
+            UIManager:show(InfoMessage:new{ text = _("Open this on your phone:\n\n") .. url })
+        end
+    end)
+end
+
 function StickyReader:unpair()
     if self:isPaired() then
         self:withNetwork(function() request("POST", "/unpair", {}) end)
@@ -185,6 +205,8 @@ function StickyReader:addToMainMenu(menu_items)
         sub_item_table = {
             { text = _("Write a note"), enabled_func = function() return self:isPaired() end,
               callback = function() self:writeNote() end },
+            { text = _("Link phone (QR code)"), enabled_func = function() return self:isPaired() end,
+              callback = function() self:linkPhone() end },
             { text = _("Check for new notes"), enabled_func = function() return self:isPaired() end,
               callback = function() self:sync() end },
             { text = _("Show note on sleep screen"), checked_func = function()

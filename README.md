@@ -17,6 +17,12 @@ The newest received note is drawn as the sleep screen.
 4. Device A: *Pair: create code*. Device B: *Pair: enter code*.
 5. *Write a note* sends; *Check for new notes* (or enable *Sync when waking up*) receives.
 
+## Typing from a phone
+On a paired Kindle: Sticky Reader -> *Link phone (QR code)*, then scan the QR code (or open
+the URL) with your phone. The page sends notes to the *other* Kindle. The URL contains a secret
+token; re-linking revokes the previous link. The relay URL must be reachable from the phone
+(same Wi-Fi for a LAN address, or a public HTTPS host).
+
 ## Notes / limits
 - Untested on hardware: written against KOReader's plugin API from memory; the sleep-screen
   hook wraps `Screensaver.show`, which may need tweaks across KOReader versions.
