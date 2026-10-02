@@ -228,6 +228,11 @@ function StickyReader:addToMainMenu(menu_items)
 end
 
 function StickyReader:onResume()
+    -- Dismiss our note screen on wake, whatever the global "sleep screen delay" is.
+    if Screensaver._stickyreader_note_shown then
+        Screensaver._stickyreader_note_shown = false
+        UIManager:scheduleIn(0.5, function() Screensaver:close_widget() end)
+    end
     if settings:isTrue("sync_on_resume") and NetworkMgr:isOnline() then
         UIManager:scheduleIn(3, function() self:sync(true) end)
     end
@@ -272,6 +277,7 @@ function StickyReader:hookScreensaver()
         }
         ss.screensaver_widget.modal = true
         ss.screensaver_widget.dithered = true
+        Screensaver._stickyreader_note_shown = true
         UIManager:show(ss.screensaver_widget, "full")
     end
 end
