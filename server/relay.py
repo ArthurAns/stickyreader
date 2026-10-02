@@ -46,6 +46,13 @@ def expire_pending(now):
             del STATE["devices"][dev]
 
 
+def release(dev):
+    """Remove a device and detach its peer. Call with LOCK held."""
+    d = STATE["devices"].pop(dev, None)
+    if d and d["peer"] in STATE["devices"]:
+        STATE["devices"][d["peer"]]["peer"] = None
+
+
 def new_device():
     dev = "d_" + secrets.token_hex(6)
     token = secrets.token_urlsafe(24)
@@ -139,6 +146,9 @@ class Handler(BaseHTTPRequestHandler):
                 expire_pending(now)
                 if too_many(ip, "create", 10, 3600):
                     return self.reply(429, {"error": "too many attempts, try later"})
+                old = self.auth()
+                if old:
+                    release(old)
                 if len(STATE["devices"]) >= MAX_DEVICES:
                     return self.reply(403, {"error": "relay is full (max %d devices)" % MAX_DEVICES})
                 record(ip, "create")
@@ -158,6 +168,9 @@ class Handler(BaseHTTPRequestHandler):
                 if not p:
                     record(ip, "join_fail")
                     return self.reply(404, {"error": "invalid or expired code"})
+                old = self.auth()
+                if old and old != p["dev"]:
+                    release(old)
                 if len(STATE["devices"]) >= MAX_DEVICES:
                     STATE["pending"][str(data.get("code", ""))] = p
                     return self.reply(403, {"error": "relay is full (max %d devices)" % MAX_DEVICES})

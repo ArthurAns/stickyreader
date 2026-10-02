@@ -56,6 +56,16 @@ class RelayTest(unittest.TestCase):
         call("POST", "/unpair", {}, ta)
         self.assertEqual(call("POST", "/pair/create", {})[0], 200)
 
+    def test_repair_after_one_side_unpairs(self):
+        ta, tb = self.pair()
+        call("POST", "/unpair", {}, ta)                      # A unpairs, B keeps its old record
+        _, a = call("POST", "/pair/create", {})              # A starts again
+        s, b2 = call("POST", "/pair/join", {"code": a["code"]}, tb)  # B re-pairs using its old token
+        self.assertEqual(s, 200)
+        self.assertEqual(call("POST", "/messages", {"text": "x"}, a["token"])[0], 200)
+        _, r = call("GET", "/messages?after=0", token=b2["token"])
+        self.assertEqual(len(r["messages"]), 1)
+
     def test_wrong_code_rate_limit(self):
         for _ in range(10):
             self.assertEqual(call("POST", "/pair/join", {"code": "000000"})[0], 404)
