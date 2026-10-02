@@ -257,10 +257,12 @@ function StickyReader:hookScreensaver()
             width = math.floor(w * 0.8),
             alignment = "center",
         }
-        ss.screensaver_widget = FrameContainer:new{
-            width = w, height = h, bordersize = 0, padding = 0,
+        -- Use KOReader's own ScreenSaverWidget so tap/key/wake dismissal and cleanup work.
+        local ScreenSaverWidget = require("ui/widget/screensaverwidget")
+        ss.screensaver_widget = ScreenSaverWidget:new{
             background = Blitbuffer.COLOR_WHITE,
-            CenterContainer:new{
+            covers_fullscreen = true,
+            widget = CenterContainer:new{
                 dimen = Geom:new{ w = w, h = h },
                 FrameContainer:new{
                     bordersize = Size.border.thick, padding = Size.padding.large,
