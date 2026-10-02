@@ -32,7 +32,7 @@ token; re-linking revokes the previous link. The relay URL must be reachable fro
 
 ## Relay security
 - At most **2 devices** per relay (`--max-devices`); unpair a Kindle to free a slot. If a Kindle is lost
-  without unpairing, run `python3 relay.py --reset` (stop the service first) to start over.
+  without unpairing, run `python3 relay.py --reset --data <file>` (stop the service first; it resets and exits) to start over.
 - Wrong pairing codes are rate-limited (10 per 10 min per IP), code creation too (10 per hour);
   pairing codes expire after 10 minutes and abandoned ones free their slot.
 - Only the newest 500 notes are kept. Run `python3 tests/test_relay.py` for the relay tests.

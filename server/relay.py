@@ -248,5 +248,6 @@ if __name__ == "__main__":
     elif a.reset:
         save()
         print("State reset.")
+        raise SystemExit(0)
     print("StickyReader relay on %s:%d" % (a.host, a.port))
     ThreadingHTTPServer((a.host, a.port), Handler).serve_forever()
