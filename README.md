@@ -23,6 +23,20 @@ the URL) with your phone. The page sends notes to the *other* Kindle. The URL co
 token; re-linking revokes the previous link. The relay URL must be reachable from the phone
 (same Wi-Fi for a LAN address, or a public HTTPS host).
 
+## Receiving, history, settings
+- Notes are fetched automatically: right after waking (if the Kindle is online) and every 5 minutes
+  while it is awake and online. A Kindle that is asleep cannot receive anything; notes arrive at the next wake.
+- Optional: *Settings -> Turn on Wi-Fi briefly when waking up* switches Wi-Fi on for the fetch, then off again.
+- *History* (Sticky Reader menu) lists the last 100 notes received and sent; tap one to read it.
+- The sleep screen shows the latest received note as a framed card with the date and time received.
+
+## Relay security
+- At most **2 devices** per relay (`--max-devices`); unpair a Kindle to free a slot. If a Kindle is lost
+  without unpairing, run `python3 relay.py --reset` (stop the service first) to start over.
+- Wrong pairing codes are rate-limited (10 per 10 min per IP), code creation too (10 per hour);
+  pairing codes expire after 10 minutes and abandoned ones free their slot.
+- Only the newest 500 notes are kept. Run `python3 tests/test_relay.py` for the relay tests.
+
 ## Notes / limits
 - Untested on hardware: written against KOReader's plugin API from memory; the sleep-screen
   hook wraps `Screensaver.show`, which may need tweaks across KOReader versions.

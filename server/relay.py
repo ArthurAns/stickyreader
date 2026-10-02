@@ -12,6 +12,9 @@ from urllib.parse import urlparse, parse_qs
 
 CODE_TTL = 600
 MAX_TEXT = 2000
+MAX_DEVICES = 2         # a private relay for one couple: at most 2 devices at a time
+KEEP_MESSAGES = 500     # oldest notes are dropped beyond this
+RATE = {}               # (client ip, kind) -> [timestamps]
 LOCK = threading.Lock()
 STATE = {"devices": {}, "pending": {}, "messages": [], "next_id": 1}
 DATA_PATH = "relay.json"
@@ -22,6 +25,25 @@ def save():
     with open(tmp, "w") as f:
         json.dump(STATE, f)
     os.replace(tmp, DATA_PATH)
+
+
+def too_many(ip, kind, limit, window):
+    now = time.time()
+    hits = [t for t in RATE.get((ip, kind), []) if now - t < window]
+    RATE[(ip, kind)] = hits
+    return len(hits) >= limit
+
+
+def record(ip, kind):
+    RATE.setdefault((ip, kind), []).append(time.time())
+
+
+def expire_pending(now):
+    """Drop expired pairing codes and the half-created devices that owned them."""
+    for code in [c for c, p in STATE["pending"].items() if p["exp"] < now]:
+        dev = STATE["pending"].pop(code)["dev"]
+        if dev in STATE["devices"] and STATE["devices"][dev]["peer"] is None:
+            del STATE["devices"][dev]
 
 
 def new_device():
@@ -62,6 +84,7 @@ def queue_message(me, text):
     msg = {"id": STATE["next_id"], "to": peer, "text": text, "ts": int(time.time())}
     STATE["next_id"] += 1
     STATE["messages"].append(msg)
+    del STATE["messages"][:-KEEP_MESSAGES]
     save()
     return 200, {"id": msg["id"]}
 
@@ -84,6 +107,10 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("Content-Length", str(len(body)))
         self.end_headers()
         self.wfile.write(body)
+
+    def ip(self):
+        # Behind the Cloudflare tunnel the real client is in CF-Connecting-IP.
+        return self.headers.get("CF-Connecting-IP") or self.client_address[0]
 
     def body(self):
         n = int(self.headers.get("Content-Length") or 0)
@@ -108,8 +135,13 @@ class Handler(BaseHTTPRequestHandler):
         with LOCK:
             now = time.time()
             if path == "/pair/create":
-                for c in [c for c, p in STATE["pending"].items() if p["exp"] < now]:
-                    del STATE["pending"][c]
+                ip = self.ip()
+                expire_pending(now)
+                if too_many(ip, "create", 10, 3600):
+                    return self.reply(429, {"error": "too many attempts, try later"})
+                if len(STATE["devices"]) >= MAX_DEVICES:
+                    return self.reply(403, {"error": "relay is full (max %d devices)" % MAX_DEVICES})
+                record(ip, "create")
                 dev, token = new_device()
                 code = "%06d" % secrets.randbelow(10**6)
                 while code in STATE["pending"]:
@@ -118,9 +150,17 @@ class Handler(BaseHTTPRequestHandler):
                 save()
                 return self.reply(200, {"device_id": dev, "token": token, "code": code})
             if path == "/pair/join":
+                ip = self.ip()
+                expire_pending(now)
+                if too_many(ip, "join_fail", 10, 600):
+                    return self.reply(429, {"error": "too many wrong codes, try later"})
                 p = STATE["pending"].pop(str(data.get("code", "")), None)
-                if not p or p["exp"] < now:
+                if not p:
+                    record(ip, "join_fail")
                     return self.reply(404, {"error": "invalid or expired code"})
+                if len(STATE["devices"]) >= MAX_DEVICES:
+                    STATE["pending"][str(data.get("code", ""))] = p
+                    return self.reply(403, {"error": "relay is full (max %d devices)" % MAX_DEVICES})
                 dev, token = new_device()
                 STATE["devices"][dev]["peer"] = p["dev"]
                 STATE["devices"][p["dev"]]["peer"] = dev
@@ -184,9 +224,16 @@ if __name__ == "__main__":
     ap.add_argument("--port", type=int, default=8787)
     ap.add_argument("--host", default="0.0.0.0")
     ap.add_argument("--data", default="relay.json")
+    ap.add_argument("--max-devices", type=int, default=MAX_DEVICES)
+    ap.add_argument("--reset", action="store_true",
+                    help="forget all devices, codes and notes (use if a device was lost)")
     a = ap.parse_args()
     DATA_PATH = a.data
-    if os.path.exists(DATA_PATH):
+    MAX_DEVICES = a.max_devices
+    if os.path.exists(DATA_PATH) and not a.reset:
         STATE.update(json.load(open(DATA_PATH)))
+    elif a.reset:
+        save()
+        print("State reset.")
     print("StickyReader relay on %s:%d" % (a.host, a.port))
     ThreadingHTTPServer((a.host, a.port), Handler).serve_forever()
